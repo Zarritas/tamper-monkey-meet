@@ -2,8 +2,8 @@
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
 // @version      0.1.0
-// @description  Registra el tiempo en un Google Meet y lo envía a una API con un botón.
-// @author       TuNombre
+// @description  Registra el tiempo del meet y genera la imputacion automaticamente
+// @author       Jesus Lorenzo
 // @match        https://meet.google.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
 // @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/css/style.css
@@ -86,14 +86,15 @@
         initialTime = new Date();
         setRefinementReport()
     }
-
+    function checkEndNumber(hours){
+        // desarrollar
+    }
     function sendTimeTrackingData() {
         const endTime = new Date();
         const elapsedMilliseconds = endTime - initialTime;
-        const elapsedHours = Math.round(elapsedMilliseconds / 3600000);
-
+        const elapsedHours = Math.round((elapsedMilliseconds / 3600000)*100)/100;
+        elapsedHours = checkEndNumber(elapsedHours);
         console.log(`Tiempo total a imputar: ${formatDecimalToTime(elapsedHours)}.`);
-
         odooRPC.createTimesheetEntry(
             project_id,
             task_id,
