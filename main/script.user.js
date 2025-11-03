@@ -6,6 +6,7 @@
 // @author       TuNombre
 // @match        https://meet.google.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
+// @resource overlay https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/html/overlay.html
 // @require      https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-imputar/refs/heads/main/main/scripts/utils.js
 // @require      https://raw.githubusercontent.com/FlJesusLorenzo/tampermonkey-odoo-rpc/refs/heads/main/OdooRPC.js
 // @grant        GM_setValue
@@ -80,12 +81,17 @@
       }, 5000)
   }
 
+  function stopAndStartNewImputation(){
+    sendTimeTrackingData();
+    initialTime = new Date();
+  }
+
   function sendTimeTrackingData() {
     const endTime = new Date();
     const elapsedMilliseconds = endTime - initialTime;
     const elapsedHours = Math.round(elapsedMilliseconds / 3600000);
 
-    console.log(`Fin del meet. Tiempo total a imputar: ${formatDecimalToTime(elapsedHours)}.`);
+    console.log(`Tiempo total a imputar: ${formatDecimalToTime(elapsedHours)}.`);
 
     odooRPC.createTimesheetEntry(
         project_id,
@@ -103,9 +109,14 @@
             lang: "es_ES",
             tz: "Europe/Madrid",
       })
-      const button = document.createElement("button")
+      const menu = document.createElement("div")
+      menu.innerHTML = GM_getResourceText('overlay')
+      
       document.body.append(button)
-      button.addEventListener("click", sendTimeTrackingData)
+
+      const create_imputation = document.getElementById('create_imputation')
+      create_imputation.addEventListener("click", sendTimeTrackingData)
+    });
       try{
           odooRPC.authenticate()
       }catch (e){
