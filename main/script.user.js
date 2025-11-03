@@ -6,7 +6,6 @@
 // @author       TuNombre
 // @match        https://meet.google.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
-// @resource overlay https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/html/overlay.html
 // @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/css/style.css
 // @require      https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-imputar/refs/heads/main/main/scripts/utils.js
 // @require      https://raw.githubusercontent.com/FlJesusLorenzo/tampermonkey-odoo-rpc/refs/heads/main/OdooRPC.js
