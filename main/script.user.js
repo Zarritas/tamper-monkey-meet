@@ -227,8 +227,13 @@
             const label = document.createElement("label");
             label.setAttribute("for", id);
             label.textContent = labelText;
-
-            const input = document.createElement("input");
+            
+            if (id !== 'description'){
+                const input = document.createElement("input");
+            } else {
+                const input = document.createElement('textarea')
+            }
+            
             input.id = id;
             input.classList = inputClass;
 
@@ -247,6 +252,7 @@
 
         taskConfig.appendChild(createTaskBlock("project","Proyecto: ","task-config", "block-config"));
         taskConfig.appendChild(createTaskBlock("task","Tarea: ","task-config", "block-config"));
+        taskConfig.appendChild(createTaskBlock("description","Descripción: ", "task-config", "block-config"))
 
         imputationInputs.append(globalConfig, taskConfig);
 
