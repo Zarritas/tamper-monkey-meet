@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.0.1
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -37,12 +37,12 @@
     let project_id = null
 
     async function setDailyReport(){
-        description = document.querySelector('div[jsname="NeC6gb"]').textContent.split(' ').slice(0,2).join(' ')
+        document.getElementById('description').textContent = document.querySelector('div[jsname="NeC6gb"]').textContent.split(' ').slice(0,2).join(' ')
         await setProjectAndTask("Temas internos", "Daily")
     }
 
     async function setRefinementReport(){
-        description = document.querySelector('div[jsname="NeC6gb"]').textContent.split(' ').slice(0,2).join(' ').replace('Daily', 'Refinamiento')
+        document.getElementById('description').textContent = document.querySelector('div[jsname="NeC6gb"]').textContent.split(' ').slice(0,2).join(' ').replace('Daily', 'Refinamiento')
         await setProjectAndTask("Temas internos", "Refinement")
     }
 
@@ -112,9 +112,10 @@
         const endTime = new Date();
         const elapsedMilliseconds = endTime - initialTime;
         let elapsedHours = Math.round((elapsedMilliseconds / 3600000)*100)/100;
+        elapsedHours = checkEndNumber(elapsedHours);
         project_id = parseInt(document.getElementById('project-id').textContent)
         task_id = parseInt(document.getElementById('task-id').textContent)
-        elapsedHours = checkEndNumber(elapsedHours);
+        description = document.getElementById('description').textContent
         console.log(`Tiempo total a imputar: ${formatDecimalToTime(elapsedHours)}.`);
         odooRPC.createTimesheetEntry(
             project_id,
