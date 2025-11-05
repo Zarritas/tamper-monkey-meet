@@ -2,8 +2,7 @@
     z-index: 999;
     background: none;
     padding: 10px;
-    transition: background 0.2s ease-in-out,
-        display 0.2 ease-in-out;
+    transition: background 0.2s ease-in-out, display 0.2s ease-in-out;
     border-radius: 20px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
@@ -185,6 +184,7 @@
     height: 100%;
     display: flex;
     justify-content: center;
+    align-items: center;
 }
 #project-task-tab-tab{
         border-top-left-radius: 10px;
