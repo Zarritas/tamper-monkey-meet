@@ -38,6 +38,13 @@
     let description = null
     let project_id = null
 
+    function cleanInfo(elements){
+        elements.forEach((element)=>{
+            element.value = ''
+            element.textContent = ''
+        })
+    }
+
     async function setDailyReport(){
         document.getElementById('description').textContent = document.querySelector('div[jsname="NeC6gb"]').textContent
         await setProjectAndTask("Temas internos", "Daily")
@@ -135,6 +142,13 @@
                 elapsedHours
             )
             clickButton(document.getElementById('save-imputation'),'Imputación creada','btn-primary','btn-success')
+            cleanInfo([
+                document.getElementById('description'),
+                document.getElementById('task-id'),
+                document.getElementById('task'),
+                document.getElementById('project-id'),
+                document.getElementById('project'),
+            ])
         } catch {
             clickButton(document.getElementById('save-imputation'),'Error al imputar','btn-primary','btn-danger')
         }
