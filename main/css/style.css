@@ -96,7 +96,6 @@
   opacity: 0.5;
 }
 #imputation_config label {
-    margin-bottom: 5px;
     font-weight: bold;
     color: #555;
 }
@@ -114,7 +113,7 @@
 #project-task-tab-tab{
         border-top-left-radius: 10px;
 }
-#config-tab{
+#url-tab{
         border-top-right-radius: 10px;
 }
 #footer{
