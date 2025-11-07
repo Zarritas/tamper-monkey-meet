@@ -630,8 +630,9 @@
                 continue;
             }
             project = await response.records[0].name
-            await alert(`proyecto ${response.records[0].name} encontrado`)
+            if (!confirm(`Proyecto ${project} encontrado`)) project = null
         }while(!project);
+        
         do{
             task = prompt('Tarea (solo tareas abiertas):');
             if (task === null) return false
@@ -655,8 +656,9 @@
                 continue;
             }
             task = await response.records[0].name
-            await alert(`Tarea ${response.records[0].name} encontrada`)
+            if (!confirm(`Tarea ${task} encontrada`)) task = null 
         }while(!task);
+        
         const description = prompt("Descripción por defecto:")
         let values = {
             name: toCamelCase(name),
