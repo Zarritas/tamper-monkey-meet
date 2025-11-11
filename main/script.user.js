@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
-// @namespace    http://tampermonkey.net/
-// @version      1.5.0
+// @namespace    http://tuapp.local
+// @version      2.0.0
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -10,6 +10,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
 // @match        https://meet.google.com/*
+// @match        https://calendar.google.com/*
 // @exclude      https://meet.google.com/landing
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
 // @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/css/style.css
@@ -25,15 +26,7 @@
 
 (function() {
     'use strict';
-    GM_addStyle(
-        GM_getResourceText('css')
-    )
-    GM_addStyle(
-        GM_getResourceText('bootstrap')
-    )
-    GM_addStyle(
-        GM_getResourceText('poppins')
-    )
+
     let odooRPC = new OdooRPC(
         GM_getValue("odoo_url"),
         GM_getValue("db"),
@@ -50,6 +43,7 @@
     let saveButton = null
     let imputationButton = null
     let is_daily = false
+    let observer = null
 
     function cleanInfo(elements){
         elements.forEach((element)=>{
@@ -118,12 +112,12 @@
     }
 
     async function startTime(){
+
         const start_button = document.querySelector('.XCoPyb');
         if (start_button) start_button.removeEventListener('click', startTime);
         initialTime = new Date();
         console.log(`Temporizador iniciado a las: ${initialTime.toLocaleTimeString()}`);
         try{
-            const static_urls = GM_getValue('url_static',[])
             setTimeout(()=>{
                 document.querySelector('button[jsname="CQylAd"]').addEventListener('click', ()=> {
                     sendTimeTrackingData()
@@ -132,13 +126,6 @@
                         e.returnValue = '';
                     })
                 })
-                document.querySelector('div[jsname="ys7RQc"]').parentElement.appendChild(createImputationConfig());
-                let element = static_urls.find(item => item.value === location.origin + location.pathname);
-                if (location.origin + location.pathname === GM_getValue('daily_meet')){
-                    setDailyReport();
-                } else if (element){
-                    setStaticUrlReport(element);
-                };
             }, 3000)
         } catch(e){
             console.log(`Error ${e}`)
@@ -641,7 +628,7 @@
             project = await response.records[0].name
             if (!confirm(`Proyecto ${project} encontrado`)) project = null
         }while(!project);
-        
+
         do{
             task = prompt('Tarea (solo tareas abiertas):');
             if (task === null) return false
@@ -665,9 +652,9 @@
                 continue;
             }
             task = await response.records[0].name
-            if (!confirm(`Tarea ${task} encontrada`)) task = null 
+            if (!confirm(`Tarea ${task} encontrada`)) task = null
         }while(!task);
-        
+
         const description = prompt("Descripción por defecto:")
         let values = {
             name: toCamelCase(name),
@@ -686,10 +673,70 @@
         return true
     }
 
-    window.addEventListener('load', () => {
-        const button = document.querySelector('.XCoPyb');
-        if (button)button.addEventListener('click', startTime);
-        else startTime();
-    });
+    function startObserver(){
+        observer.observe(document.body, { childList: true, subtree: true });
+        if (this) this.removeEventListener("click", startObserver);
+    }
+
+    function createElement(element, classList, text = ''){
+        const new_element = document.createElement(element)
+        new_element.id = `new_${element}`
+        new_element.classList = classList
+        new_element.textContent = text
+        return new_element
+    }
+
+    if (location.origin == "https://meet.google.com"){
+        observer = new MutationObserver(() => {
+            const container = document.querySelector('div[jscontroller="mVP9bb"]')
+            const new_div = document.getElementById('imputation_config')
+
+            if (!container || container.style.display === 'none' || new_div) return;
+
+            const static_urls = GM_getValue('url_static',[])
+            container.parentElement.appendChild(createImputationConfig());
+            let element = static_urls.find(item => item.value === location.origin + location.pathname);
+            if (location.origin + location.pathname === GM_getValue('daily_meet')){
+                setDailyReport();
+            } else if (element){
+                setStaticUrlReport(element);
+            };
+        });
+        GM_addStyle(
+            GM_getResourceText('css')
+        )
+        GM_addStyle(
+            GM_getResourceText('bootstrap')
+        )
+        GM_addStyle(
+            GM_getResourceText('poppins')
+        )
+        window.addEventListener('load', () => {
+            const button = document.querySelector('.XCoPyb');
+            if (button) button.addEventListener('click', startTime);
+            else startTime();
+        });
+        startObserver()
+    }
+    if (location.origin == "https://calendar.google.com" ){
+        observer = new MutationObserver(() => {
+            const hangupDiv = document.querySelector('div.YWILgc.UcbTuf:not(.qdulke)');
+            const new_div = document.getElementById('new_div')
+
+            if (!hangupDiv || new_div) return;
+
+            const div = createElement('div','"VfPpkd-dgl2Hf-ppHlrf-sM5MNb')
+            const button = createElement('button', 'AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf AeBiU-kSE8rc-FoKg4d-sLO9V-YoZ4jf nWxfQb')
+            button.appendChild(createElement('span', 'AeBiU-vQzf8d', 'Datos de tarea'))
+            div.appendChild(button)
+            hangupDiv.appendChild(div)
+
+            statusDiv = document.createElement('div')
+
+            button.addEventListener('click', newStaticUrl);
+        });
+
+        startObserver()
+    }
 
 })();
