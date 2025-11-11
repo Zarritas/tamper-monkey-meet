@@ -76,19 +76,19 @@
 
     async function setDailyReport(){
         if (!await ensureAuth()) return
-        document.getElementById('description').textContent = document.querySelector('div[jsname="NeC6gb"]').textContent
+        document.getElementById('description').value = document.querySelector('div[jsname="NeC6gb"]').textContent
         await setProjectAndTask("Temas internos", "Daily")
     }
 
     async function setRefinementReport(){
         if (!await ensureAuth()) return
-        document.getElementById('description').textContent = document.querySelector('div[jsname="NeC6gb"]').textContent.replace('Daily', 'Refinamiento')
+        document.getElementById('description').value = document.querySelector('div[jsname="NeC6gb"]').textContent.replace('Daily', 'Refinamiento')
         await setProjectAndTask("Temas internos", "Refinement")
     }
 
     async function setStaticUrlReport(element){
         if (!await ensureAuth()) return
-        document.getElementById('description').textContent = element.description
+        document.getElementById('description').value = element.description
         await setProjectAndTask(element.project, element.task)
     }
 
