@@ -103,8 +103,7 @@
             1,
             ['id','name']
         );
-        document.getElementById('project').value = await project_id.records[0].name
-        document.getElementById('project-id').innerText = project_id = await project_id.records[0].id
+        document.getElementById('project-id').innerText = document.getElementById('project').value = project_id = await project_id.records[0].name
         task_id = await odooRPC.odooSearch(
             'project.task',
             [
@@ -115,8 +114,7 @@
             1,
             ['id','name']
         );
-        document.getElementById('task').value = await task_id.records[0].name
-        document.getElementById('task-id').innerText = await task_id.records[0].id
+        document.getElementById('task').value = document.getElementById('task-id').innerText = task_id = await task_id.records[0].name
     }
 
     async function startTime(){
@@ -210,7 +208,7 @@
                     this.value = ''
                     return;
                 };
-                domain.push(["project_id","=",parseInt(document.getElementById('project-id').textContent)]);
+                domain.push(["project_id","=",project_id]);
             };
             const response = await odooRPC.odooSearch(
                 `project.${this.id}`,
@@ -270,8 +268,6 @@
     }
 
     async function sendTimeTrackingData() {
-        project_id = parseInt(document.getElementById('project-id').textContent)
-        task_id = parseInt(document.getElementById('task-id').textContent)
         description = document.getElementById('description').value;
         if (!project_id){
             showStatus("Proyecto incorrecto", "error", statusDiv)
