@@ -137,7 +137,7 @@
                 } else if (element){
                     setStaticUrlReport(element);
                 };
-            }, 1500)
+            }, 3000)
         } catch(e){
             console.log(`Error ${e}`)
         }
@@ -268,6 +268,7 @@
         if (!await ensureAuth()) return
         project_id = parseInt(document.getElementById('project-id').textContent)
         task_id = parseInt(document.getElementById('task-id').textContent)
+        description = document.getElementById('description').value;
         if (!project_id){
             showStatus("Proyecto incorrecto", "error", statusDiv)
             clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
@@ -286,7 +287,15 @@
             }, 2000)
             return false;
         }
-        description = document.getElementById('description').value;
+        if (!description){
+            showStatus("La descripción es obligatoria", "error", statusDiv)
+            clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
+            setTimeout(()=>{
+                showStatus("", undefined, statusDiv)
+                clickButton(imputationButton,'Imputar','btn-danger','btn-primary',false)
+            }, 2000)
+            return false;
+        }
         const endTime = new Date();
         const elapsedMilliseconds = endTime - initialTime;
         let elapsedHours = Math.round((elapsedMilliseconds / 3600000)*100)/100;
