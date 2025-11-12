@@ -669,7 +669,7 @@
         if (element && document.getElementById(element.name)) document.getElementById(`block-${element.name}`).remove()
         statics.push(values)
         GM_setValue('url_static', statics)
-        document.getElementById('url_config').appendChild(createInputBlock(values.name, `URL meet ${values.label}`, values.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"))
+        if (location.origin === "https://meet.google.com") document.getElementById('url_config').appendChild(createInputBlock(values.name, `URL meet ${values.label}`, values.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"))
         return true
     }
 
