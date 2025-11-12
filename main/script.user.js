@@ -364,7 +364,7 @@
 
     function cleanUrl(value){
         let absolutes = GM_getValue("url_static",[]);
-        const element_pos = absolutes.findIndex(item => item.value === input.value);
+        const element_pos = absolutes.findIndex(item => item.value === value);
         if (element_pos === -1) return
         absolutes.splice(element, 1);
         GM_setValue("url_static",absolutes)
