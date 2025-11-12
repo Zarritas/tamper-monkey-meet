@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Google Meet Imputación automática - dev
+// @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
 // @version      2.0.0
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
@@ -13,7 +13,7 @@
 // @match        https://calendar.google.com/*
 // @exclude      https://meet.google.com/landing
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
-// @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/dev/main/css/style.css
+// @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/css/style.css
 // @resource bootstrap https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css
 // @resource poppins https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap
 // @require      https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-imputar/refs/heads/main/main/scripts/utils.js
@@ -209,6 +209,8 @@
             };
             document.getElementById(`${this.id}-id`).innerText = data.id;
             this.value = data.name;
+            if (this.id === 'project') project_id = data.id
+            if (this.id === 'task') task_id = data.id
             document.getElementById('task').disabled = false
         }catch{
             showStatus(`${this.id} no encontrado`, "error", statusDiv)
@@ -600,22 +602,41 @@
             .join('');
     }
 
+
     async function newStaticUrl(){
         if (!await ensureAuth()) return false
-        const name = prompt('Nombre');
-        if (name === null) return false
-        let url = null;
-        if (location.origin === "https://meet.google.com") url = prompt("URL del meet")
-        if (location.origin === "https://calendar.google.com") url = `https://${document.getElementById('xDetDlgVideo').querySelector('.AzuXid.O2VjS').textContent}`
+        let name = null;
         let project = null
         let task = null
+        let url = null;
+        let description = null
+        do{
+            name = prompt('Nombre de la url estatica')
+            if (!name){
+                if (!confirm('¿Continuar creando la url estática?')) return false
+                alert('El nombre es obligatorio')
+            }
+
+        }while(!name)
+        do{
+            if (location.origin === "https://meet.google.com") url = prompt(`URL de la reunión \n Ejemplo: https://meet.google.com/...`)
+            if (location.origin === "https://calendar.google.com") url = `https://${document.getElementById('xDetDlgVideo').querySelector('.AzuXid.O2VjS').textContent}`
+            if (!url){
+                if (!confirm('¿Continuar creando la url estática?')) return false
+                alert('La url es obligatoria')
+            }
+        }while(!url)
         do{
             project = prompt('Nombre del proyecto:');
-            if (project === null) return false
+            if (!project) {
+                if (!confirm('¿Continuar creando la url estática?')) return false
+                alert('El proyecto es obligatorio')
+                continue
+            }
             let response = await odooRPC.odooSearch(
                 `project.project`,
                 [['name','ilike',project]],
-                1,
+                undefined,
                 ["name"]
             );
             if (await response.records.length > 1){
@@ -633,7 +654,11 @@
 
         do{
             task = prompt('Tarea (solo tareas abiertas):');
-            if (task === null) return false
+            if (!task) {
+                if (!confirm('¿Continuar creando la url estática?')) return false
+                alert('La tarea es obligatoria')
+                continue
+            }
             let response = await odooRPC.odooSearch(
                 `project.task`,
                 [
@@ -641,7 +666,7 @@
                     ['name','ilike',task],
                     ['stage_id.closed','=',false]
                 ],
-                1,
+                undefined,
                 ["name"]
             );
             if (await response.records.length > 1){
@@ -656,8 +681,13 @@
             task = await response.records[0].name
             if (!confirm(`Tarea ${task} encontrada`)) task = null
         }while(!task);
-
-        const description = prompt("Descripción por defecto:")
+        do{
+            description = prompt("Descripción por defecto:")
+            if (!description) {
+                if (!confirm('¿Continuar creando la url estática?')) return false
+                alert('La descripción es obligatoria')
+            }
+        }while(!description);
         let values = {
             name: toCamelCase(name),
             label: name,
@@ -672,6 +702,7 @@
         statics.push(values)
         GM_setValue('url_static', statics)
         if (location.origin === "https://meet.google.com") document.getElementById('url_config').appendChild(createInputBlock(values.name, `URL meet ${values.label}`, values.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"))
+        alert(`URL Guardada\n    Nombre: ${name}\n    URL: ${url}\n    Proyecto: ${project}\n    Tarea: ${task}\n    Descripción: ${description}`)
         return true
     }
 
@@ -680,12 +711,23 @@
         if (this) this.removeEventListener("click", startObserver);
     }
 
-    function createElement(element, classList, text = ''){
+    function createElement(element, id, classList, text = ''){
         const new_element = document.createElement(element)
-        new_element.id = `new_${element}`
+        new_element.id = id
         new_element.classList = classList
         new_element.textContent = text
         return new_element
+    }
+
+    async function createNewStaticUrl(meet_container, sobreescribir=true){
+        const absolutes = GM_getValue('url_static', [])
+        const meet_endpoint = meet_container.querySelector('.AzuXid.O2VjS').textContent
+        const element = absolutes.find(item => item.value === `https://${meet_endpoint}`)
+        if (element) {
+            sobreescribir = confirm(`Ya tienes una url estática vinculada a este meet\n${element.label}: ${meet_endpoint}\n ¿Quieres sobreescribirla?`)
+        }
+        if (!sobreescribir) return
+        await newStaticUrl()
     }
 
     if (location.origin == "https://meet.google.com"){
@@ -722,30 +764,73 @@
     }
     if (location.origin == "https://calendar.google.com" ){
         observer = new MutationObserver(() => {
+            let button = null
+            let div = null
+            console.log('comprobar observer')
             const hangupDiv = document.querySelector('div.YWILgc.UcbTuf:not(.qdulke)');
-            const new_div = document.getElementById('new_div')
+            const hungupDiv_create = document.querySelector('div[jsname="I0Fcpe"]');
+            const hangupDiv_specific_event = document.getElementById('xSaveBu');
+            const new_div = document.getElementById('static_url_button')
 
-            if (!hangupDiv || new_div) return;
+            console.log(hangupDiv,hungupDiv_create,hangupDiv_specific_event,new_div)
+            if (new_div) return;
 
-            const div = createElement('div','"VfPpkd-dgl2Hf-ppHlrf-sM5MNb')
-            const button = createElement('button', 'AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf AeBiU-kSE8rc-FoKg4d-sLO9V-YoZ4jf nWxfQb')
-            button.appendChild(createElement('span', 'AeBiU-vQzf8d', 'Datos de tarea'))
-            div.appendChild(button)
-            hangupDiv.appendChild(div)
+            if (hangupDiv){
+                div = createElement('div', 'static_url_container','"VfPpkd-dgl2Hf-ppHlrf-sM5MNb')
+                button = createElement('button', 'static_url_button', 'AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf AeBiU-kSE8rc-FoKg4d-sLO9V-YoZ4jf nWxfQb')
+                button.appendChild(createElement('span', 'static_url_button_text', 'AeBiU-vQzf8d', 'Datos de tarea'))
+                div.appendChild(button)
+                hangupDiv.appendChild(div)
+                button.addEventListener('click', async () => {
+                    const meet_container = document.getElementById('xDetDlgVideo')
+                    if (!meet_container) {
+                        alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
+                        return;
+                    }
+                    await createNewStaticUrl(meet_container)
+                    statusDiv.classList.add('show')
+                    setTimeout(()=>{
+                        statusDiv.classList.remove('show')
+                    },2000)
+                });
+            } else if (hungupDiv_create){
+                button = createElement('button', 'static_url_button','nUt0vb zmrbhe qs41qe')
+                button.appendChild(createElement('span', 'url_static_span_style_1', 'UTNHae'))
+                button.appendChild(createElement('span', 'url_static_span_style_2', 'XjoK4b SIr0ye'))
+                button.appendChild(createElement('div', 'url_static_div_text', 'x5FT4e kkUTBb', 'Datos de tarea'))
+                hungupDiv_create.appendChild(button)
+                button.addEventListener('click', async () => {
+                    const meet_container = document.querySelector('[jsname="h2GoKe"]')
+                    if (!meet_container) {
+                        alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
+                        return;
+                    }
+                    await createNewStaticUrl(meet_container)
+                });
+            }else if(hangupDiv_specific_event){
+                button = createElement('button', 'static_url_button','UywwFc-LgbsSe UywwFc-StrnGf-YYd4I-VtOx3e UywwFc-kSE8rc-FoKg4d-sLO9V-YoZ4jf guz9kb')
+                button.appendChild(createElement('span', 'url_static_span_style_1', 'XjoK4b'))
+                button.appendChild(createElement('span', 'url_static_span_style_2', 'MMvswb'))
+                button.appendChild(createElement('span', 'url_static_span_style_3', 'UTNHae'))
+                button.appendChild(createElement('span', 'url_static_span_style_4', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-M1Soyc'))
+                button.appendChild(createElement('span', 'url_static_span_style_5', 'UywwFc-vQzf8d', 'Datos de tarea'))
+                button.appendChild(createElement('span', 'url_static_span_style_5', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-UbuQg'))
+                hangupDiv_specific_event.parentElement.appendChild(button)
+                button.addEventListener('click', async () => {
+                    const meet_container = document.querySelector('[jsname="h2GoKe"]')
+                    if (!meet_container) {
+                        alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
+                        return;
+                    }
+                    await createNewStaticUrl(meet_container)
+                });
+            } else {
+                return
+            }
 
             statusDiv = document.createElement('div')
-            statusDiv.classList = 'success-message'
+            statusDiv.style.zIndex = '99999999'
             document.body.appendChild(statusDiv)
-            void statusDiv.offsetWidth;
-
-            button.addEventListener('click', async () => {
-                await newStaticUrl()
-                statusDiv.classList.add('show');
-                setTimeout(() => {
-                  statusDiv.classList.remove('show');
-                  statusDiv.classList.add('hide');
-                }, 2000);
-            });
         });
 
         startObserver()
