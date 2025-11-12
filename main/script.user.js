@@ -604,7 +604,9 @@
         if (!await ensureAuth()) return false
         const name = prompt('Nombre');
         if (name === null) return false
-        const url = prompt('URL');
+        let url = null;
+        if (location.origin === "https://meet.google.com") url = prompt("URL del meet")
+        if (location.origin === "https://calendar.google.com") url = `https://${document.getElementById('xDetDlgVideo').querySelector('.AzuXid.O2VjS').textContent}`
         let project = null
         let task = null
         do{
@@ -735,7 +737,7 @@
             statusDiv.classList = 'success-message'
             document.body.appendChild(statusDiv)
             void statusDiv.offsetWidth;
-            
+
             button.addEventListener('click', async () => {
                 await newStaticUrl()
                 statusDiv.classList.add('show');
