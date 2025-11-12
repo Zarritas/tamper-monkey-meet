@@ -97,7 +97,8 @@
             1,
             ['id','name']
         );
-        document.getElementById('project-id').innerText = document.getElementById('project').value = project_id = await project_id.records[0].name
+        document.getElementById('project').value = await project_id.records[0].name
+        document.getElementById('project-id').innerText = project_id = await project_id.records[0].id
         task_id = await odooRPC.odooSearch(
             'project.task',
             [
@@ -108,7 +109,8 @@
             1,
             ['id','name']
         );
-        document.getElementById('task').value = document.getElementById('task-id').innerText = task_id = await task_id.records[0].name
+        document.getElementById('task').value = await task_id.records[0].name
+        document.getElementById('task-id').innerText = task_id = await task_id.records[0].id
     }
 
     async function startTime(){
