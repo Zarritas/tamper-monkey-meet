@@ -204,7 +204,7 @@
             if (!this.value){
                 console.log(`${this.id} no encontrado`);
                 cleanInfo([
-                    parent.querySelector(`input#${this.id}`)
+                    parent.querySelector(`input#${this.id}`),
                     parent.querySelector(`#${this.id}-id`),
                     parent.querySelector("#description")
                 ])
@@ -215,7 +215,7 @@
             ];
             if (this.id == "task" || this.id == "new-task"){
                 domain.push(['stage_id.closed','=',false]);
-                if (!parent.querySelector.querySelector('#project-id').textContent){
+                if (!parent.querySelector('#project-id').textContent){
                     console.log("rellenar el proyecto primero");
                     this.value = ''
                     return;
