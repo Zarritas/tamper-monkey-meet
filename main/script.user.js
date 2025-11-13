@@ -341,7 +341,7 @@
         label.setAttribute("for", id);
         label.textContent = labelText;
         label.classList = "input-group-text";
-        label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
+        label.style = "justify-content: center; display:flex; align-items: center";
         block.appendChild(label);
 
         const input = document.createElement('input');
