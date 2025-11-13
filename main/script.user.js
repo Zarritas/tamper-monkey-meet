@@ -192,20 +192,21 @@
             this.value = ''
             return;
         }
+        const parent = this.parentElement.parentElement
         try{
             if (this.id === "project"){
-                document.getElementById('task').disabled = true;
+                parent.querySelector('input#task').disabled = true;
                 cleanInfo([
-                    document.getElementById('task'),
-                    document.getElementById('task-id')
+                    parent.querySelector('input#task'),
+                    parent.querySelector('#task-id')
                 ])
             }
             if (!this.value){
                 console.log(`${this.id} no encontrado`);
                 cleanInfo([
-                    document.getElementById(`${this.id}`),
-                    document.getElementById(`${this.id}-id`),
-                    document.getElementById("description")
+                    parent.querySelector(`input#${this.id}`)
+                    parent.querySelector(`#${this.id}-id`),
+                    parent.querySelector("#description")
                 ])
                 return;
             }
@@ -214,7 +215,7 @@
             ];
             if (this.id == "task" || this.id == "new-task"){
                 domain.push(['stage_id.closed','=',false]);
-                if (!this.parentElement.parentElement.querySelector('#project-id').textContent){
+                if (!parent.querySelector.querySelector('#project-id').textContent){
                     console.log("rellenar el proyecto primero");
                     this.value = ''
                     return;
@@ -235,7 +236,7 @@
             this.value = data.name;
             if (this.id === 'project') project_id = data.id
             if (this.id === 'task') task_id = data.id
-            document.getElementById('task').disabled = false
+            parent.querySelector('input#task').disabled = false
             return data
         }catch{
             showStatus(`${this.id} no encontrado`, "error", statusDiv)
