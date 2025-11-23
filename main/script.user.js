@@ -25,12 +25,181 @@
 // @downloadURL  https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/script.user.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
+    const CONSTANTS = {
+        STORAGE: {
+            ODOO_URL: 'odoo_url',
+            DB: 'db',
+            DAILY_MEET: 'daily_meet',
+            STATIC_URLS: 'url_static'
+        },
+        SELECTORS: {
+            MEET: {
+                START_BUTTON: '.XCoPyb',
+                END_CALL_BUTTON: 'button[jsname="CQylAd"]',
+                MEET_CONTAINER: 'div[jscontroller="mVP9bb"]',
+                MEET_INFO: '.AzuXid.O2VjS',
+                DESCRIPTION_SOURCE: 'NeC6gb'
+            },
+            CALENDAR: {
+                HANGUP_DIV: 'div.YWILgc.UcbTuf:not(.qdulke)',
+                HANGUP_DIV_CREATE: 'div[jsname="I0Fcpe"]',
+                HANGUP_DIV_SPECIFIC: '#xSaveBu',
+                MEET_CONTAINER_1: '#xDetDlgVideo',
+                MEET_CONTAINER_2: '[jsname="h2GoKe"]'
+            }
+        },
+        CLASSES: {
+            BTN_PRIMARY: 'btn-primary',
+            BTN_SUCCESS: 'btn-success',
+            BTN_DANGER: 'btn-danger',
+            BTN_WARNING: 'btn-warning',
+            BTN_INFO: 'btn-info'
+        }
+    };
+
+    const UI = {
+        create: (tag, id, classList, text = '') => {
+            const element = document.createElement(tag);
+            if (id) element.id = id;
+            if (classList) element.className = classList;
+            if (text) element.textContent = text;
+            return element;
+        },
+        button: (id, text, classList, onClick) => {
+            const btn = UI.create('button', id, classList, text);
+            if (onClick) btn.addEventListener('click', onClick);
+            return btn;
+        },
+        createInputBlock: (id, labelText, inputValue, inputClass, blockClass) => {
+            const block = UI.create("div", `block-${id}`, blockClass);
+
+            const label = UI.create("label", null, "input-group-text", labelText);
+            label.setAttribute("for", id);
+            label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
+            block.appendChild(label);
+
+            const input = UI.create('input', id, inputClass);
+            input.value = inputValue || '';
+            input.addEventListener('blur', () => {
+                input.value = input.value.trim()
+            });
+            block.appendChild(input);
+
+            if (inputClass.endsWith('new-url')) {
+                const span_conf = UI.create('span', null, "input-group-text", '⚙️');
+                span_conf.style = "margin-top: 5px;background: grey; cursor: pointer;"
+                span_conf.addEventListener('click', async () => {
+                    await createPopupStaticUrl()
+                    setTimeout(() => {
+                        showStatus(``, undefined, statusDiv)
+                    }, 2000)
+                })
+                const span_del = UI.create('span', null, "input-group-text", '❌');
+                span_del.style = "margin-top: 5px;background: #e35f5d; cursor: pointer;"
+                span_del.addEventListener('click', async () => {
+                    showStatus(`La url estatica ${id} borrada con exito`, "success", statusDiv)
+                    Utils.cleanUrl(input.value);
+                    block.remove()
+                    setTimeout(() => {
+                        showStatus(``, undefined, statusDiv)
+                    }, 2000)
+                })
+                block.append(span_del, span_conf);
+            }
+            return block;
+        },
+        createTaskBlock: (id, labelText, inputClass, blockClass) => {
+            const block = UI.create("div", `block-${id}`, blockClass);
+
+            const label = UI.create("label", null, "input-group-text", labelText);
+            label.setAttribute("for", id);
+            label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
+
+            let input = null
+            if (id !== 'description') {
+                input = UI.create("input", id, inputClass);
+            } else {
+                input = UI.create('textarea', id, inputClass);
+            }
+
+            const span_id = UI.create("span", `${id}-id`);
+            span_id.style.display = 'none'
+
+            block.appendChild(label);
+            block.appendChild(input);
+            block.appendChild(span_id);
+
+            if (id !== 'description') {
+                input.addEventListener("change", async function () {
+                    let data = await getProyectOrTask.call(this)
+                    span_id.innerText = data.id
+                })
+            }
+
+            return block;
+        }
+    };
+
+    const Utils = {
+        toCamelCase: (text) => {
+            return text
+                .toLowerCase()
+                .split(' ')
+                .map((word, index) =>
+                    index === 0
+                        ? word
+                        : word.charAt(0).toUpperCase() + word.slice(1)
+                )
+                .join('');
+        },
+        checkEndNumber: (hours) => {
+            const wholeHours = Math.floor(hours);
+            const decimalPart = hours - wholeHours;
+            let mins = Math.round(decimalPart * 60);
+            if (mins % 5 !== 0) {
+                mins += (5 - (mins % 5));
+                if (mins === 60) {
+                    return wholeHours + 1;
+                }
+            }
+            return wholeHours + (mins / 60);
+        },
+        cleanInfo: (elements) => {
+            elements.forEach((element) => {
+                element.value = ''
+                element.textContent = ''
+            })
+        },
+        clickButton: (element, text, fromClass, toClass, disabled = true) => {
+            element.classList.add(toClass)
+            element.classList.remove(fromClass)
+            element.disabled = disabled
+            element.innerText = text
+        },
+        cleanUrl: (value) => {
+            let absolutes = GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, []);
+            const element_pos = absolutes.findIndex(item => item.value === value);
+            if (element_pos === -1) return
+            absolutes.splice(element_pos, 1);
+            GM_setValue(CONSTANTS.STORAGE.STATIC_URLS, absolutes)
+        }
+    };
+
+    const ErrorHandler = {
+        handle: (error, context) => {
+            console.error(`Error in ${context}:`, error);
+            if (typeof showStatus === 'function' && statusDiv) {
+                showStatus(`Error: ${error.message || error}`, "error", statusDiv);
+            }
+        }
+    };
+
     let odooRPC = new OdooRPC(
-        GM_getValue("odoo_url"),
-        GM_getValue("db"),
+        GM_getValue(CONSTANTS.STORAGE.ODOO_URL),
+        GM_getValue(CONSTANTS.STORAGE.DB),
         {
             lang: "es_ES",
             tz: "Europe/Madrid",
@@ -52,65 +221,53 @@
     let is_daily = false
     let observer = null
 
-    function cleanInfo(elements){
-        elements.forEach((element)=>{
-            element.value = ''
-            element.textContent = ''
-        })
-    }
 
-    function clickButton(element, text, fromClass, toClass, disabled=true){
-        element.classList.add(toClass)
-        element.classList.remove(fromClass)
-        element.disabled = disabled
-        element.innerText = text
-    }
 
-    async function ensureAuth(){
+    async function ensureAuth() {
         const auth = await odooRPC.authenticate();
-        if (!await auth){
+        if (!await auth) {
             showStatus("¡¡No estas autenticado en odoo!!", "error", statusDiv);
-        }else{
+        } else {
             showStatus("", undefined, statusDiv);
         }
         return auth;
     }
 
-    async function setDailyReport(){
+    async function setDailyReport() {
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.querySelector('NeC6gb').textContent
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).textContent
     }
 
-    async function setRefinementReport(){
+    async function setRefinementReport() {
         if (!await ensureAuth()) return
         is_daily = false
         await setProjectAndTask("Temas internos", "Refinement")
-        document.getElementById('description').value = document.querySelector('NeC6gb').textContent.replace('Daily', 'Refinamiento')
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).textContent.replace('Daily', 'Refinamiento')
     }
 
-    async function setStaticUrlReport(element){
+    async function setStaticUrlReport(element) {
         if (!await ensureAuth()) return
         is_daily = false
         await setProjectAndTask(element.project, element.task)
         document.getElementById('description').value = element.description
     }
 
-    async function setProjectAndTask(project_name, task_name, is_static = false){
+    async function setProjectAndTask(project_name, task_name, is_static = false) {
         let project_temp_id = null
         project_id = await odooRPC.odooSearch(
             'project.project',
-            [['name','ilike', project_name]],
+            [['name', 'ilike', project_name]],
             1,
-            ['id','name']
+            ['id', 'name']
         );
         let data = await project_id.records[0]
-        if (!is_static){
+        if (!is_static) {
             project_id = data.id
             document.getElementById('project').value = data.name
             document.getElementById('project-id').innerText = data.id
-        }else{
+        } else {
             project_temp_id = data.id
             document.getElementById('block-project').querySelector('input#project').value = data.name
             document.getElementById('block-project').querySelector('#project-id').innerText = data.id
@@ -118,93 +275,97 @@
         task_id = await odooRPC.odooSearch(
             'project.task',
             [
-                ['project_id','=',project_temp_id || project_id],
-                ['stage_id.closed','=',false],
-                ['name','ilike',task_name]
+                ['project_id', '=', project_temp_id || project_id],
+                ['stage_id.closed', '=', false],
+                ['name', 'ilike', task_name]
             ],
             1,
-            ['id','name']
+            ['id', 'name']
         );
         data = await task_id.records[0]
-        if (!is_static){
+        if (!is_static) {
             task_id = data.id
             document.getElementById('task').value = data.name
             document.getElementById('task-id').innerText = data.id
-        }else{
+        } else {
             document.getElementById('block-task').querySelector('input#task').value = data.name
             document.getElementById('block-task').querySelector('#task-id').innerText = data.id
         }
     }
 
-    async function startTime(){
+    async function startTime() {
 
-        const start_button = document.querySelector('.XCoPyb');
+        const start_button = document.querySelector(CONSTANTS.SELECTORS.MEET.START_BUTTON);
         if (start_button) start_button.removeEventListener('click', startTime);
         initialTime = new Date();
         console.log(`Temporizador iniciado a las: ${initialTime.toLocaleTimeString()}`);
-        try{
-            setTimeout(()=>{
-                document.querySelector('button[jsname="CQylAd"]').addEventListener('click', ()=> {
-                    sendTimeTrackingData()
-                    window.addEventListener('beforeunload', (e)=>{
+        try {
+            setTimeout(() => {
+                document.querySelector(CONSTANTS.SELECTORS.MEET.END_CALL_BUTTON).addEventListener('click', async () => {
+                    window.addEventListener('beforeunload', (e) => {
+                        e.preventDefault();
+                        e.returnValue = '';
+                    })
+                    await sendTimeTrackingData()
+                    window.removeEventListener('beforeunload', (e) => {
                         e.preventDefault();
                         e.returnValue = '';
                     })
                 })
             }, 3000)
-        } catch(e){
-            console.log(`Error ${e}`)
+        } catch (e) {
+            ErrorHandler.handle(e, 'startTime')
         }
     }
 
-    async function configSettings(){
-        GM_setValue('odoo_url', document.getElementById("odoo_url").value);
-        GM_setValue('db', document.getElementById("db").value);
-        GM_setValue('daily_meet', document.getElementById("daily").value);
+    async function configSettings() {
+        GM_setValue(CONSTANTS.STORAGE.ODOO_URL, document.getElementById("odoo_url").value);
+        GM_setValue(CONSTANTS.STORAGE.DB, document.getElementById("db").value);
+        GM_setValue(CONSTANTS.STORAGE.DAILY_MEET, document.getElementById("daily").value);
         let static_urls = document.querySelectorAll('.new-url')
-        static_urls.forEach((element)=>{
-            const absolutes = GM_getValue('url_static')
+        static_urls.forEach((element) => {
+            const absolutes = GM_getValue(CONSTANTS.STORAGE.STATIC_URLS)
             const elemento = absolutes.find(item => item.name === element.id)
-            if (elemento){
+            if (elemento) {
                 elemento.value = element.value
             }
-            GM_setValue('url_static', absolutes)
+            GM_setValue(CONSTANTS.STORAGE.STATIC_URLS, absolutes)
         })
         const display_button = document.getElementById("display_imputation_buttom");
         odooRPC = new OdooRPC(
-            GM_getValue("odoo_url"),
-            GM_getValue("db"),
+            GM_getValue(CONSTANTS.STORAGE.ODOO_URL),
+            GM_getValue(CONSTANTS.STORAGE.DB),
             {
                 lang: "es_ES",
                 tz: "Europe/Madrid",
             }
         )
-        clickButton(saveButton, 'Configuración guardada','btn-primary','btn-success')
+        Utils.clickButton(saveButton, 'Configuración guardada', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_SUCCESS)
         const session = await ensureAuth()
-        if (await session) await display_button.classList.remove('btn-warning')
-        else await display_button.classList.add('btn-warning')
-        setTimeout(()=>{
-            clickButton(saveButton, 'Guardar configuración','btn-success','btn-primary', false)
-        },1000)
+        if (await session) await display_button.classList.remove(CONSTANTS.CLASSES.BTN_WARNING)
+        else await display_button.classList.add(CONSTANTS.CLASSES.BTN_WARNING)
+        setTimeout(() => {
+            Utils.clickButton(saveButton, 'Guardar configuración', CONSTANTS.CLASSES.BTN_SUCCESS, CONSTANTS.CLASSES.BTN_PRIMARY, false)
+        }, 1000)
     }
 
-    async function getProyectOrTask(){
-        if (!await ensureAuth()){
+    async function getProyectOrTask() {
+        if (!await ensureAuth()) {
             this.value = ''
             return;
         }
         const parent = this.parentElement.parentElement
-        try{
-            if (this.id === "project"){
+        try {
+            if (this.id === "project") {
                 parent.querySelector('input#task').disabled = true;
-                cleanInfo([
+                Utils.cleanInfo([
                     parent.querySelector('input#task'),
                     parent.querySelector('#task-id')
                 ])
             }
-            if (!this.value){
+            if (!this.value) {
                 console.log(`${this.id} no encontrado`);
-                cleanInfo([
+                Utils.cleanInfo([
                     parent.querySelector(`input#${this.id}`),
                     parent.querySelector(`#${this.id}-id`),
                     parent.querySelector("#description")
@@ -212,16 +373,16 @@
                 return;
             }
             let domain = [
-                ['name','ilike',this.value]
+                ['name', 'ilike', this.value]
             ];
-            if (this.id == "task" || this.id == "new-task"){
-                domain.push(['stage_id.closed','=',false]);
-                if (!parent.querySelector('#project-id').textContent){
+            if (this.id == "task" || this.id == "new-task") {
+                domain.push(['stage_id.closed', '=', false]);
+                if (!parent.querySelector('#project-id').textContent) {
                     console.log("rellenar el proyecto primero");
                     this.value = ''
                     return;
                 };
-                domain.push(["project_id","=",project_id]);
+                domain.push(["project_id", "=", project_id]);
             };
             const response = await odooRPC.odooSearch(
                 `project.${this.id}`,
@@ -230,7 +391,7 @@
                 ['id', "name"]
             );
             const data = await response.records[0];
-            if (!data){
+            if (!data) {
                 return;
             };
 
@@ -239,21 +400,22 @@
             if (this.id === 'task') task_id = data.id
             parent.querySelector('input#task').disabled = false
             return data
-        }catch{
+        } catch (e) {
             showStatus(`${this.id} no encontrado`, "error", statusDiv)
-            setTimeout(()=>{
+            ErrorHandler.handle(e, 'getProyectOrTask')
+            setTimeout(() => {
                 showStatus(``, undefined, statusDiv)
-            },2000)
+            }, 2000)
         }
     }
 
-    async function stopAndStartNewImputation(){
+    async function stopAndStartNewImputation() {
         let susscess = await sendTimeTrackingData()
-        setTimeout(()=>{
-            clickButton(imputationButton,text_button,(susscess)?'btn-success':'btn-danger','btn-primary', false)
+        setTimeout(() => {
+            Utils.clickButton(imputationButton, text_button, (susscess) ? CONSTANTS.CLASSES.BTN_SUCCESS : CONSTANTS.CLASSES.BTN_DANGER, CONSTANTS.CLASSES.BTN_PRIMARY, false)
         }, 1000)
         if (!susscess) return
-        cleanInfo([
+        Utils.cleanInfo([
             document.getElementById('description'),
             document.getElementById('task-id'),
             document.getElementById('task'),
@@ -263,301 +425,158 @@
         initialTime = new Date();
         console.log(`Nuevo Temporizador iniciado a las: ${initialTime.toLocaleTimeString()}`);
         let text_button = "Imputar"
-        if (is_daily){
+        if (is_daily) {
             setRefinementReport();
             text_button = "Imputar y empezar otra tarea"
         }
         imputationButton.innerText = text_button
     }
 
-    function checkEndNumber(hours){
-        const wholeHours = Math.floor(hours);
-        const decimalPart = hours - wholeHours;
-        let mins = Math.round(decimalPart * 60);
-        if (mins % 5 !== 0) {
-            mins += (5 - (mins % 5));
-            if (mins === 60) {
-                return wholeHours + 1;
-            }
-        }
-        return wholeHours + (mins / 60);
-    }
+
 
     async function sendTimeTrackingData() {
         description = document.getElementById('description').value;
-        if (!project_id){
+        if (!project_id) {
             showStatus("Proyecto incorrecto", "error", statusDiv)
-            clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
-            setTimeout(()=>{
+            Utils.clickButton(imputationButton, 'Error al imputar', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_DANGER)
+            setTimeout(() => {
                 showStatus("", undefined, statusDiv)
-                clickButton(imputationButton,'Imputar','btn-danger','btn-primary',false)
+                Utils.clickButton(imputationButton, 'Imputar', CONSTANTS.CLASSES.BTN_DANGER, CONSTANTS.CLASSES.BTN_PRIMARY, false)
             }, 2000)
             return false;
         }
-        if (!task_id){
+        if (!task_id) {
             showStatus("Tarea incorrecta", "error", statusDiv)
-            clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
-            setTimeout(()=>{
+            Utils.clickButton(imputationButton, 'Error al imputar', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_DANGER)
+            setTimeout(() => {
                 showStatus("", undefined, statusDiv)
-                clickButton(imputationButton,'Imputar','btn-danger','btn-primary',false)
+                Utils.clickButton(imputationButton, 'Imputar', CONSTANTS.CLASSES.BTN_DANGER, CONSTANTS.CLASSES.BTN_PRIMARY, false)
             }, 2000)
             return false;
         }
-        if (!description){
+        if (!description) {
             showStatus("La descripción es obligatoria", "error", statusDiv)
-            clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
-            setTimeout(()=>{
+            Utils.clickButton(imputationButton, 'Error al imputar', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_DANGER)
+            setTimeout(() => {
                 showStatus("", undefined, statusDiv)
-                clickButton(imputationButton,'Imputar','btn-danger','btn-primary',false)
+                Utils.clickButton(imputationButton, 'Imputar', CONSTANTS.CLASSES.BTN_DANGER, CONSTANTS.CLASSES.BTN_PRIMARY, false)
             }, 2000)
             return false;
         }
         const endTime = new Date();
         const elapsedMilliseconds = endTime - initialTime;
-        let elapsedHours = Math.round((elapsedMilliseconds / 3600000)*100)/100;
-        elapsedHours = checkEndNumber(elapsedHours);
+        let elapsedHours = Math.round((elapsedMilliseconds / 3600000) * 100) / 100;
+        elapsedHours = Utils.checkEndNumber(elapsedHours);
         console.log(`Tiempo total a imputar: ${formatDecimalToTime(elapsedHours)}.`);
         try {
-            clickButton(imputationButton,'Creando imputación ...','btn-primary','btn-info')
+            Utils.clickButton(imputationButton, 'Creando imputación ...', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_INFO)
             await odooRPC.createTimesheetEntry(
                 project_id,
                 task_id,
                 description,
                 elapsedHours
             )
-            clickButton(imputationButton,'Imputación creada','btn-info','btn-success')
+            Utils.clickButton(imputationButton, 'Imputación creada', CONSTANTS.CLASSES.BTN_INFO, CONSTANTS.CLASSES.BTN_SUCCESS)
             return true
-        } catch {
-            clickButton(imputationButton,'Error al imputar','btn-primary','btn-danger')
+        } catch (e) {
+            Utils.clickButton(imputationButton, 'Error al imputar', CONSTANTS.CLASSES.BTN_PRIMARY, CONSTANTS.CLASSES.BTN_DANGER)
+            ErrorHandler.handle(e, 'sendTimeTrackingData')
             return false
         }
     }
 
-    function createInputBlock(id, labelText, inputValue, inputClass, blockClass) {
-        const block = document.createElement("div");
-        block.id = `block-${id}`;
-        block.classList = blockClass;
 
-        const label = document.createElement("label");
-        label.setAttribute("for", id);
-        label.textContent = labelText;
-        label.classList = "input-group-text";
-        label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
-        block.appendChild(label);
 
-        const input = document.createElement('input');
-        input.id = id;
-        input.classList = inputClass;
-        input.value = inputValue || '';
-        input.addEventListener('blur', ()=>{
-            input.value = input.value.trim()
-        });
-        block.appendChild(input);
 
-        if (inputClass.endsWith('new-url')){
-            const span_conf = document.createElement('span');
-            span_conf.classList = "input-group-text";
-            span_conf.style = "margin-top: 5px;background: grey;"
-            span_conf.innerText = '⚙️'
-            span_conf.style.cursor = 'pointer'
-            span_conf.addEventListener('click', async ()=>{
-                await createPopupStaticUrl()
-                setTimeout(()=>{
-                    showStatus(``, undefined, statusDiv)
-                },2000)
-            })
-            const span_del = document.createElement('span');
-            span_del.classList = "input-group-text";
-            span_del.style = "margin-top: 5px;background: #e35f5d;"
-            span_del.innerText = '❌'
-            span_del.style.cursor = 'pointer'
-            span_del.addEventListener('click', async ()=>{
-                showStatus(`La url estatica ${id} borrada con exito`, "success", statusDiv)
-                cleanUrl(input.value);
-                block.remove()
-                setTimeout(()=>{
-                    showStatus(``, undefined, statusDiv)
-                },2000)
-            })
-            block.append(span_del,span_conf);
-        }
-        return block;
-    };
-
-    function createTaskBlock(id, labelText, inputClass, blockClass) {
-        const block = document.createElement("div");
-        block.id = `block-${id}`;
-        block.classList = blockClass
-
-        const label = document.createElement("label");
-        label.setAttribute("for", id);
-        label.textContent = labelText;
-        label.classList = "input-group-text"
-        label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
-
-        let input = null
-        if (id !== 'description'){
-            input = document.createElement("input");
-        } else {
-            input = document.createElement('textarea')
-        }
-
-        input.id = id;
-        input.classList = inputClass;
-
-        const span_id = document.createElement("span");
-        span_id.id = `${id}-id`;
-        span_id.style.display = 'none'
-
-        block.appendChild(label);
-        block.appendChild(input);
-        block.appendChild(span_id);
-
-        if (id !== 'description') {
-            input.addEventListener("change", async function () {
-                let data = await getProyectOrTask.call(this)
-                span_id.innerText = data.id
-            })
-        }
-
-        return block;
-    }
-
-    function cleanUrl(value){
-        let absolutes = GM_getValue("url_static",[]);
-        const element_pos = absolutes.findIndex(item => item.value === value);
-        if (element_pos === -1) return
-        absolutes.splice(element_pos, 1);
-        GM_setValue("url_static",absolutes)
-    }
 
     function createImputationConfig() {
-        const imputationConfig = document.createElement("div");
-        imputationConfig.id = "imputation_config";
-        imputationConfig.classList = "pt8HRc RTBkae";
+        const imputationConfig = UI.create("div", "imputation_config", "pt8HRc RTBkae");
         imputationConfig.style.top = "0px";
         imputationConfig.style.right = "0px";
 
-        const display_buttom = document.createElement('buttom');
-        display_buttom.id = "display_imputation_buttom";
-        display_buttom.classList = "wX4xVc-Bz112c-LgbsSe wX4xVc-Bz112c-LgbsSe-OWXEXe-SfQLQb-suEOdc MNFoWc gP9Sgd lSuz7d";
+        const display_button = UI.create('button', "display_imputation_buttom", "wX4xVc-Bz112c-LgbsSe wX4xVc-Bz112c-LgbsSe-OWXEXe-SfQLQb-suEOdc MNFoWc gP9Sgd lSuz7d");
 
-        const icon = document.createElement('span')
-        icon.id = 'imputation_icon'
-        icon.innerText = '📝'
-        display_buttom.append(icon)
+        const icon = UI.create('span', 'imputation_icon', null, '📝');
+        display_button.append(icon)
 
-        const div_container = document.createElement('div')
-        div_container.id = "div_imputation_container";
+        const div_container = UI.create('div', "div_imputation_container");
         div_container.style.display = 'none'
 
-        const title = document.createElement("h3");
-        title.innerText = "Configuración de Imputación";
-        title.classList = "title";
+        const title = UI.create("h3", null, "title", "Configuración de Imputación");
 
-        const formTabs = document.createElement("div");
-        formTabs.classList = "form-tabs";
+        const formTabs = UI.create("div", null, "form-tabs");
 
-        const imputationInputs = document.createElement("div");
-        imputationInputs.id = "imputation_inputs";
+        const imputationInputs = UI.create("div", "imputation_inputs");
 
-        const globalConfig = document.createElement("div");
-        globalConfig.id = "global_config";
-        globalConfig.classList = "form-section";
+        const globalConfig = UI.create("div", "global_config", "form-section");
 
-        const urlConfig = document.createElement("div");
-        urlConfig.id = "url_config";
-        urlConfig.classList = "form-section";
+        const urlConfig = UI.create("div", "url_config", "form-section");
         urlConfig.style.maxHeight = "200px";
         urlConfig.style.overflow = "overlay";
 
-        const taskConfig = document.createElement("div");
-        taskConfig.id = "task_config";
-        taskConfig.classList = "form-section active";
+        const taskConfig = UI.create("div", "task_config", "form-section active");
 
-        const configTab = document.createElement("div");
-        configTab.classList = "tab";
-        configTab.id = "config-tab";
-        configTab.innerText = "Configuración";
+        const configTab = UI.create("div", "config-tab", "tab", "Configuración");
 
-        const urlTab = document.createElement("div");
-        urlTab.classList = "tab";
-        urlTab.id = "url-tab";
-        urlTab.innerText = "URLs estáticas";
+        const urlTab = UI.create("div", "url-tab", "tab", "URLs estáticas");
 
-        const projectTaskTab = document.createElement("div");
-        projectTaskTab.classList = "tab active";
-        projectTaskTab.id = "project-task-tab-tab";
-        projectTaskTab.innerText = "Imputación personalizada";
+        const projectTaskTab = UI.create("div", "project-task-tab-tab", "tab active", "Imputación personalizada");
 
-        const buttonConfig = document.createElement("div");
-        buttonConfig.id = "button_config";
-        buttonConfig.classList = "block-config"
+        const buttonConfig = UI.create("div", "button_config", "block-config");
 
-        imputationButton = document.createElement("button");
-        imputationButton.id = 'save-imputation'
-        if (GM_getValue("daily_meet") === location.origin + location.pathname){
+        imputationButton = UI.create("button", 'save-imputation', "btn btn-primary");
+        if (GM_getValue(CONSTANTS.STORAGE.DAILY_MEET) === location.origin + location.pathname) {
             imputationButton.textContent = "Imputar y empezar Refinamiento";
             imputationButton.addEventListener("click", stopAndStartNewImputation)
         } else {
             imputationButton.textContent = "Imputar";
             imputationButton.addEventListener("click", stopAndStartNewImputation)
         }
-        imputationButton.classList = "btn btn-primary";
 
-        saveButton = document.createElement("button");
-        saveButton.id = 'save-config';
-        saveButton.textContent = "Guardar configuración";
-        saveButton.classList = "btn btn-primary";
+        saveButton = UI.create("button", 'save-config', "btn btn-primary", "Guardar configuración");
         saveButton.style.display = 'none';
 
-        statusDiv = document.createElement('div');
-        statusDiv.id = "imputation-status";
+        statusDiv = UI.create('div', "imputation-status");
 
-        const div_footer = document.createElement('div');
-        div_footer.id = "footer";
-        const github = document.createElement('a');
+        const div_footer = UI.create('div', "footer");
+        const github = UI.create('a');
         github.href = "https://github.com/FlJesusLorenzo/tamper-monkey-meet";
         github.target = "_blank";
         github.style.color = "black";
-        const foot_img = document.createElement('img');
+        const foot_img = UI.create('img');
         foot_img.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/1024px-GitHub_Invertocat_Logo.svg.png"
         foot_img.width = '20'
-        const by_name = document.createElement('span')
-        by_name.innerText = 'by Jesús Lorenzo'
+        const by_name = UI.create('span', null, null, 'by Jesús Lorenzo');
 
-        const add_static_url = document.createElement('button')
-        add_static_url.id = 'add-url';
-        add_static_url.textContent = "Agregar nueva URL";
-        add_static_url.classList = "btn btn-primary";
+        const add_static_url = UI.create('button', 'add-url', "btn btn-primary", "Agregar nueva URL");
         urlConfig.appendChild(add_static_url)
 
-        globalConfig.appendChild(createInputBlock("odoo_url", "URL Odoo: ", GM_getValue("odoo_url"), "global-config form-control", "input-group flex-nowrap mb-3"));
-        globalConfig.appendChild(createInputBlock("db", "Base de datos: ", GM_getValue("db"), "global-config form-control", "input-group flex-nowrap mb-3"));
-        globalConfig.appendChild(createInputBlock("daily", "URL meet daily: ", GM_getValue("daily_meet"), "global-config form-control", "input-group flex-nowrap mb-3"));
-        GM_getValue('url_static',[]).forEach((element)=>{
-            urlConfig.appendChild(createInputBlock(element.name, `URL meet ${element.label}`, element.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"));
+        globalConfig.appendChild(UI.createInputBlock("odoo_url", "URL Odoo: ", GM_getValue(CONSTANTS.STORAGE.ODOO_URL), "global-config form-control", "input-group flex-nowrap mb-3"));
+        globalConfig.appendChild(UI.createInputBlock("db", "Base de datos: ", GM_getValue(CONSTANTS.STORAGE.DB), "global-config form-control", "input-group flex-nowrap mb-3"));
+        globalConfig.appendChild(UI.createInputBlock("daily", "URL meet daily: ", GM_getValue(CONSTANTS.STORAGE.DAILY_MEET), "global-config form-control", "input-group flex-nowrap mb-3"));
+        GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, []).forEach((element) => {
+            urlConfig.appendChild(UI.createInputBlock(element.name, `URL meet ${element.label}`, element.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"));
         })
 
-        taskConfig.appendChild(createTaskBlock("project","Proyecto: ","task-config form-control", "input-group flex-nowrap mb-3"));
-        taskConfig.appendChild(createTaskBlock("task","Tarea: ","task-config form-control", "input-group flex-nowrap mb-3"));
-        taskConfig.appendChild(createTaskBlock("description","Descripción: ", "task-config form-control", "input-group flex-nowrap mb-3"))
+        taskConfig.appendChild(UI.createTaskBlock("project", "Proyecto: ", "task-config form-control", "input-group flex-nowrap mb-3"));
+        taskConfig.appendChild(UI.createTaskBlock("task", "Tarea: ", "task-config form-control", "input-group flex-nowrap mb-3"));
+        taskConfig.appendChild(UI.createTaskBlock("description", "Descripción: ", "task-config form-control", "input-group flex-nowrap mb-3"))
 
-        github.append(foot_img,by_name)
+        github.append(foot_img, by_name)
         div_footer.append(github)
         buttonConfig.append(imputationButton, saveButton);
         formTabs.append(projectTaskTab, configTab, urlTab)
         imputationInputs.append(formTabs, globalConfig, taskConfig, urlConfig);
         div_container.append(title, imputationInputs, statusDiv, buttonConfig, div_footer);
-        imputationConfig.append(display_buttom,div_container)
+        imputationConfig.append(display_button, div_container)
 
-        display_buttom.addEventListener("click", ()=>{
-            if (document.getElementById('project-id').textContent === ''){
+        display_button.addEventListener("click", () => {
+            if (document.getElementById('project-id').textContent === '') {
                 document.getElementById('task').disabled = true
             } else {
                 document.getElementById('task').disabled = false
             }
-            if (div_container.style.display === 'none'){
+            if (div_container.style.display === 'none') {
                 div_container.style.display = "flex"
                 imputationConfig.style.background = "white";
                 imputationConfig.style.position = 'absolute';
@@ -583,7 +602,7 @@
             if (projectTaskTab === activeTab) return
             switchTab(projectTaskTab, activeTab, taskConfig, activeConfig);
             saveButton.style.display = 'none';
-            if (document.getElementById('project-id').textContent === ''){
+            if (document.getElementById('project-id').textContent === '') {
                 document.getElementById('task').disabled = true
             } else {
                 document.getElementById('task').disabled = false
@@ -596,58 +615,48 @@
             switchTab(urlTab, activeTab, urlConfig, activeConfig);
             saveButton.style.display = '';
         });
-        add_static_url.addEventListener('click', async ()=>{
+        add_static_url.addEventListener('click', async () => {
             await createPopupStaticUrl()
-            setTimeout(()=>{
+            setTimeout(() => {
                 showStatus(``, undefined, statusDiv)
-            },2000)
+            }, 2000)
         })
 
-        if (!GM_getValue('odoo_url') || GM_getValue("odoo_url") === '') {
+        if (!GM_getValue(CONSTANTS.STORAGE.ODOO_URL) || GM_getValue(CONSTANTS.STORAGE.ODOO_URL) === '') {
             switchTab(configTab, projectTaskTab, globalConfig, taskConfig);
             saveButton.style.display = '';
-            display_buttom.style.backgroundColor = "#ffc107"
+            display_button.style.backgroundColor = "#ffc107"
         }
 
         return imputationConfig;
     }
 
-    function toCamelCase(text) {
-        return text
-            .toLowerCase()
-            .split(' ')
-            .map((word, index) =>
-                 index === 0
-                 ? word
-                 : word.charAt(0).toUpperCase() + word.slice(1)
-                )
-            .join('');
-    }
 
-    async function newStaticUrl(meet_endpoint = null){
+
+    async function newStaticUrl(meet_endpoint = null) {
         if (!await ensureAuth()) return false
         let name = null;
         let project = null
         let task = null
         let url = null;
         let description = null
-        do{
+        do {
             name = prompt('Nombre de la url estatica')
-            if (!name){
+            if (!name) {
                 if (!confirm('¿Continuar creando la url estática?')) return false
                 alert('El nombre es obligatorio')
             }
 
-        }while(!name)
-        do{
+        } while (!name)
+        do {
             if (location.origin === "https://meet.google.com") url = prompt(`URL de la reunión \n Ejemplo: https://meet.google.com/...`)
             if (location.origin === "https://calendar.google.com") url = `https://${meet_endpoint}`
-            if (!url){
+            if (!url) {
                 if (!confirm('¿Continuar creando la url estática?')) return false
                 alert('La url es obligatoria')
             }
-        }while(!url)
-        do{
+        } while (!url)
+        do {
             project = prompt('Nombre del proyecto:');
             if (!project) {
                 if (!confirm('¿Continuar creando la url estática?')) return false
@@ -656,24 +665,24 @@
             }
             let response = await odooRPC.odooSearch(
                 `project.project`,
-                [['name','ilike',project]],
+                [['name', 'ilike', project]],
                 undefined,
                 ["name"]
             );
-            if (await response.records.length > 1){
+            if (await response.records.length > 1) {
                 alert('Más de un proyecto encontrado, especifique más');
                 project = null;
                 continue;
-            }else if (await response.records.length < 1){
+            } else if (await response.records.length < 1) {
                 alert('Ningun proyecto encontrado, revise el nombre');
                 project = null;
                 continue;
             }
             project = await response.records[0].name
             if (!confirm(`Proyecto ${project} encontrado`)) project = null
-        }while(!project);
+        } while (!project);
 
-        do{
+        do {
             task = prompt('Tarea (solo tareas abiertas):');
             if (!task) {
                 if (!confirm('¿Continuar creando la url estática?')) return false
@@ -683,32 +692,32 @@
             let response = await odooRPC.odooSearch(
                 `project.task`,
                 [
-                    ['project_id.name','=',project],
-                    ['name','ilike',task],
-                    ['stage_id.closed','=',false]
+                    ['project_id.name', '=', project],
+                    ['name', 'ilike', task],
+                    ['stage_id.closed', '=', false]
                 ],
                 undefined,
                 ["name"]
             );
-            if (await response.records.length > 1){
+            if (await response.records.length > 1) {
                 alert('Más de una tarea encontrada, especifique más')
                 task = null
                 continue;
-            }else if (await response.records.length < 1){
+            } else if (await response.records.length < 1) {
                 alert('Ninguna tarea encontrada, revise el nombre o si la tarea está cerrada')
                 task = null
                 continue;
             }
             task = await response.records[0].name
             if (!confirm(`Tarea ${task} encontrada`)) task = null
-        }while(!task);
-        do{
+        } while (!task);
+        do {
             description = prompt("Descripción por defecto:")
             if (!description) {
                 if (!confirm('¿Continuar creando la url estática?')) return false
                 alert('La descripción es obligatoria')
             }
-        }while(!description);
+        } while (!description);
         let values = {
             name: toCamelCase(name),
             label: name,
@@ -717,34 +726,28 @@
             project: project,
             description: description
         }
-        cleanUrl(url)
-        let statics = GM_getValue("url_static", [])
+        Utils.cleanUrl(url)
+        let statics = GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, [])
         let element = statics.find(item => item.value === url)
         if (element && document.getElementById(element.name)) document.getElementById(`block-${element.name}`).remove()
         statics.push(values)
-        GM_setValue('url_static', statics)
+        GM_setValue(CONSTANTS.STORAGE.STATIC_URLS, statics)
         alert(`URL Guardada\n    Nombre: ${name}\n    URL: ${url}\n    Proyecto: ${project}\n    Tarea: ${task}\n    Descripción: ${description}`)
         return true
     }
 
-    function startObserver(){
+    function startObserver() {
         observer.observe(document.body, { childList: true, subtree: true });
         if (this) this.removeEventListener("click", startObserver);
     }
 
-    function createElement(element, id, classList, text = ''){
-        const new_element = document.createElement(element)
-        new_element.id = id
-        new_element.classList = classList
-        new_element.textContent = text
-        return new_element
-    }
 
-    async function createNewStaticUrl(meet_container){
-        const absolutes = GM_getValue('url_static', [])
-        const meet_endpoint = meet_container.querySelector('.AzuXid.O2VjS').textContent
+
+    async function createNewStaticUrl(meet_container) {
+        const absolutes = GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, [])
+        const meet_endpoint = meet_container.querySelector(CONSTANTS.SELECTORS.MEET.MEET_INFO).textContent
         let element = absolutes.find(item => item.value === `https://${meet_endpoint}`)
-        if (!element) element = {value: `https://${meet_endpoint}`}
+        if (!element) element = { value: `https://${meet_endpoint}` }
         await createPopupStaticUrl(element)
     }
 
@@ -755,21 +758,20 @@
         if (popup) popup.remove();
     }
 
-    async function createPopupStaticUrl(static_url = {}){
-        const overlay = document.createElement("div");
-        overlay.classList = "timesheet-overlay config-overlay"
-        const popup = createElement('div', 'popup', 'timesheet-popup config-popup')
-        const h3 = createElement('h3', 'header', '', 'Config')
-        const div_inputs = createElement('div', 'div-inputs', 'timesheet-form-group')
-        const input_name = createInputBlock('new-name', 'Nombre: ', static_url.label || '', "task-config form-control", "input-group flex-nowrap mb-3")
-        const input_url = createInputBlock('url', 'URL: ', static_url.value || '', "task-config form-control", "input-group flex-nowrap mb-3")
-        const input_project = createTaskBlock('project', 'Proyecto: ', "task-config form-control", "input-group flex-nowrap mb-3")
-        const input_task = createTaskBlock('task', 'Tarea: ', "task-config form-control", "input-group flex-nowrap mb-3")
-        const input_description = createTaskBlock('description', 'Descripción: ', "task-config form-control", "input-group flex-nowrap mb-3")
-        const div_buttons = createElement('div', 'div-buttons', 'timesheet-buttons')
-        const button_submit = createElement('button', 'button-submit', 'timesheet-btn timesheet-btn-primary', '✅ Guardar')
-        const button_cancel = createElement('button', 'button-cancel', 'timesheet-btn timesheet-btn-secondary', '❌ Cancelar')
-        statusDiv = createElement('div', 'config-status', '')
+    async function createPopupStaticUrl(static_url = {}) {
+        const overlay = UI.create("div", null, "timesheet-overlay config-overlay");
+        const popup = UI.create('div', 'popup', 'timesheet-popup config-popup')
+        const h3 = UI.create('h3', 'header', '', 'Config')
+        const div_inputs = UI.create('div', 'div-inputs', 'timesheet-form-group')
+        const input_name = UI.createInputBlock('new-name', 'Nombre: ', static_url.label || '', "task-config form-control", "input-group flex-nowrap mb-3")
+        const input_url = UI.createInputBlock('url', 'URL: ', static_url.value || '', "task-config form-control", "input-group flex-nowrap mb-3")
+        const input_project = UI.createTaskBlock('project', 'Proyecto: ', "task-config form-control", "input-group flex-nowrap mb-3")
+        const input_task = UI.createTaskBlock('task', 'Tarea: ', "task-config form-control", "input-group flex-nowrap mb-3")
+        const input_description = UI.createTaskBlock('description', 'Descripción: ', "task-config form-control", "input-group flex-nowrap mb-3")
+        const div_buttons = UI.create('div', 'div-buttons', 'timesheet-buttons')
+        const button_submit = UI.create('button', 'button-submit', 'timesheet-btn timesheet-btn-primary', '✅ Guardar')
+        const button_cancel = UI.create('button', 'button-cancel', 'timesheet-btn timesheet-btn-secondary', '❌ Cancelar')
+        statusDiv = UI.create('div', 'config-status', '')
 
 
 
@@ -790,31 +792,31 @@
                 !input_url.getElementsByTagName('input')[0].value ||
                 !input_task.getElementsByTagName('input')[0].value ||
                 !input_description.getElementsByTagName('textarea')[0].value
-            ){
-                showStatus('Todos los campos son obligatorios','error',statusDiv)
+            ) {
+                showStatus('Todos los campos son obligatorios', 'error', statusDiv)
                 return
             }
-            if (statics.find(item=> item.value === input_url.getElementsByTagName('input')[0].value)){
-                if(!confirm(`Ya existe una url estática para este meet\n¿Sobrescribir?`)) return
+            if (statics.find(item => item.value === input_url.getElementsByTagName('input')[0].value)) {
+                if (!confirm(`Ya existe una url estática para este meet\n¿Sobrescribir?`)) return
             }
             let values = {
-                name: toCamelCase(input_name.getElementsByTagName('input')[0].value),
+                name: Utils.toCamelCase(input_name.getElementsByTagName('input')[0].value),
                 label: input_name.getElementsByTagName('input')[0].value,
                 value: input_url.getElementsByTagName('input')[0].value,
                 project: input_project.getElementsByTagName('input')[0].value,
                 task: input_task.getElementsByTagName('input')[0].value,
                 description: input_description.getElementsByTagName('textarea')[0].value,
             }
-            cleanUrl(values.value)
+            Utils.cleanUrl(values.value)
             statics = GM_getValue("url_static", [])
             statics.push(values)
             GM_setValue('url_static', statics)
-            showStatus('Nueva url guardada','success',statusDiv)
+            showStatus('Nueva url guardada', 'success', statusDiv)
             setTimeout(closeConfigPopup, 2000)
             if (location.origin === "https://meet.google.com") {
                 let old_element = document.getElementById(`block-${values.name}`)
                 if (old_element) old_element.remove()
-                document.getElementById('url_config').appendChild(createInputBlock(values.name, `URL meet ${values.label}`, values.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"))
+                document.getElementById('url_config').appendChild(UI.createInputBlock(values.name, `URL meet ${values.label}`, values.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"))
 
             }
         });
@@ -822,25 +824,25 @@
 
     }
 
-    if (location.origin == "https://meet.google.com"){
+    if (location.origin == "https://meet.google.com") {
         observer = new MutationObserver(() => {
-            const container = document.querySelector('div[jscontroller="mVP9bb"]')
+            const container = document.querySelector(CONSTANTS.SELECTORS.MEET.MEET_CONTAINER)
             const new_div = document.getElementById('imputation_config')
 
             if (!container || new_div) return;
 
-            container.style.display === ''
 
-            const static_urls = GM_getValue('url_static',[])
+
+            const static_urls = GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, [])
             container.parentElement.appendChild(createImputationConfig());
             let element = static_urls.find(item => item.value === location.origin + location.pathname);
-            if (location.origin + location.pathname === GM_getValue('daily_meet')){
+            if (location.origin + location.pathname === GM_getValue(CONSTANTS.STORAGE.DAILY_MEET)) {
                 setDailyReport();
-            } else if (element){
+            } else if (element) {
                 setStaticUrlReport(element);
             };
         });
-        
+
         GM_addStyle(
             GM_getResourceText('bootstrap')
         )
@@ -848,62 +850,62 @@
             GM_getResourceText('poppins')
         )
         window.addEventListener('load', () => {
-            const button = document.querySelector('.XCoPyb');
+            const button = document.querySelector(CONSTANTS.SELECTORS.MEET.START_BUTTON);
             if (button) button.addEventListener('click', startTime);
             else startTime();
         });
         startObserver()
     }
-    if (location.origin == "https://calendar.google.com" ){
+    if (location.origin == "https://calendar.google.com") {
         observer = new MutationObserver(() => {
             let button = null
             let div = null
-            const hangupDiv = document.querySelector('div.YWILgc.UcbTuf:not(.qdulke)');
-            const hungupDiv_create = document.querySelector('div[jsname="I0Fcpe"]');
-            const hangupDiv_specific_event = document.getElementById('xSaveBu');
+            const hangupDiv = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.HANGUP_DIV);
+            const hungupDiv_create = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.HANGUP_DIV_CREATE);
+            const hangupDiv_specific_event = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.HANGUP_DIV_SPECIFIC);
             const new_div = document.getElementById('static_url_button')
 
             if (new_div) return;
 
-            if (hangupDiv){
-                div = createElement('div', 'static_url_container','"VfPpkd-dgl2Hf-ppHlrf-sM5MNb')
-                button = createElement('button', 'static_url_button', 'AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf AeBiU-kSE8rc-FoKg4d-sLO9V-YoZ4jf nWxfQb')
-                button.appendChild(createElement('span', 'static_url_button_text', 'AeBiU-vQzf8d', 'Datos de tarea'))
+            if (hangupDiv) {
+                div = UI.create('div', 'static_url_container', '"VfPpkd-dgl2Hf-ppHlrf-sM5MNb')
+                button = UI.create('button', 'static_url_button', 'AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf AeBiU-kSE8rc-FoKg4d-sLO9V-YoZ4jf nWxfQb')
+                button.appendChild(UI.create('span', 'static_url_button_text', 'AeBiU-vQzf8d', 'Datos de tarea'))
                 div.appendChild(button)
                 hangupDiv.appendChild(div)
                 button.addEventListener('click', async () => {
-                    const meet_container = document.getElementById('xDetDlgVideo')
+                    const meet_container = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.MEET_CONTAINER_1)
                     if (!meet_container) {
                         alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
                         return;
                     }
                     await createNewStaticUrl(meet_container)
                 });
-            } else if (hungupDiv_create){
-                button = createElement('button', 'static_url_button','nUt0vb zmrbhe qs41qe')
-                button.appendChild(createElement('span', 'url_static_span_style_1', 'UTNHae'))
-                button.appendChild(createElement('span', 'url_static_span_style_2', 'XjoK4b SIr0ye'))
-                button.appendChild(createElement('div', 'url_static_div_text', 'x5FT4e kkUTBb', 'Datos de tarea'))
+            } else if (hungupDiv_create) {
+                button = UI.create('button', 'static_url_button', 'nUt0vb zmrbhe qs41qe')
+                button.appendChild(UI.create('span', 'url_static_span_style_1', 'UTNHae'))
+                button.appendChild(UI.create('span', 'url_static_span_style_2', 'XjoK4b SIr0ye'))
+                button.appendChild(UI.create('div', 'url_static_div_text', 'x5FT4e kkUTBb', 'Datos de tarea'))
                 hungupDiv_create.appendChild(button)
                 button.addEventListener('click', async () => {
-                    const meet_container = document.querySelector('[jsname="h2GoKe"]')
+                    const meet_container = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.MEET_CONTAINER_2)
                     if (!meet_container) {
                         alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
                         return;
                     }
                     await createNewStaticUrl(meet_container)
                 });
-            }else if(hangupDiv_specific_event){
-                button = createElement('button', 'static_url_button','UywwFc-LgbsSe UywwFc-StrnGf-YYd4I-VtOx3e UywwFc-kSE8rc-FoKg4d-sLO9V-YoZ4jf guz9kb')
-                button.appendChild(createElement('span', 'url_static_span_style_1', 'XjoK4b'))
-                button.appendChild(createElement('span', 'url_static_span_style_2', 'MMvswb'))
-                button.appendChild(createElement('span', 'url_static_span_style_3', 'UTNHae'))
-                button.appendChild(createElement('span', 'url_static_span_style_4', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-M1Soyc'))
-                button.appendChild(createElement('span', 'url_static_span_style_5', 'UywwFc-vQzf8d', 'Datos de tarea'))
-                button.appendChild(createElement('span', 'url_static_span_style_5', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-UbuQg'))
+            } else if (hangupDiv_specific_event) {
+                button = UI.create('button', 'static_url_button', 'UywwFc-LgbsSe UywwFc-StrnGf-YYd4I-VtOx3e UywwFc-kSE8rc-FoKg4d-sLO9V-YoZ4jf guz9kb')
+                button.appendChild(UI.create('span', 'url_static_span_style_1', 'XjoK4b'))
+                button.appendChild(UI.create('span', 'url_static_span_style_2', 'MMvswb'))
+                button.appendChild(UI.create('span', 'url_static_span_style_3', 'UTNHae'))
+                button.appendChild(UI.create('span', 'url_static_span_style_4', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-M1Soyc'))
+                button.appendChild(UI.create('span', 'url_static_span_style_5', 'UywwFc-vQzf8d', 'Datos de tarea'))
+                button.appendChild(UI.create('span', 'url_static_span_style_5', 'UywwFc-kBDsod-Rtc0Jf UywwFc-kBDsod-Rtc0Jf-OWXEXe-UbuQg'))
                 hangupDiv_specific_event.parentElement.appendChild(button)
                 button.addEventListener('click', async () => {
-                    const meet_container = document.querySelector('[jsname="h2GoKe"]')
+                    const meet_container = document.querySelector(CONSTANTS.SELECTORS.CALENDAR.MEET_CONTAINER_2)
                     if (!meet_container) {
                         alert("No hay reunión de meet creada, debes crear una antes de agregar los datos")
                         return;
