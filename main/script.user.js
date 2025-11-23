@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      2.1.1
+// @version      2.1.2
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -80,14 +80,14 @@
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.getElementById('ucc-7').textContent
+        document.getElementById('description').value = document.querySelector('NeC6gb').textContent
     }
 
     async function setRefinementReport(){
         if (!await ensureAuth()) return
         is_daily = false
         await setProjectAndTask("Temas internos", "Refinement")
-        document.getElementById('description').value = document.getElementById('ucc-7').textContent.replace('Daily', 'Refinamiento')
+        document.getElementById('description').value = document.querySelector('NeC6gb').textContent.replace('Daily', 'Refinamiento')
     }
 
     async function setStaticUrlReport(element){
