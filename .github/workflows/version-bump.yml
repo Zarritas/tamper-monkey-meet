@@ -31,6 +31,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr checkout ${{ github.event.issue.number }}
 
+      - name: Rebase
+        if: steps.bump-type.outputs.TYPE != 'none'
+        continue-on-error: true
+        run: |
+          git rebase origin/main || echo "REBASE_FAILED=true" >> $GITHUB_OUTPUT
+      
+      - name: Error rebase → comentar en PR
+        if: ${{ steps.rebase.outputs.REBASE_FAILED == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -f body="❌ No se pudo hacer **rebase con main**.  
+            Existen conflictos que deben resolverse manualmente.
+            Revisa el trabajo: $RUN_URL"
+          exit 1
+      
       - name: Configurar identidad Git
         run: |
           git config user.name "github-actions[bot]"
@@ -108,20 +126,9 @@ jobs:
         if: steps.bump-type.outputs.TYPE != 'none'
         continue-on-error: true
         run: |
-          git rebase origin/main || echo "REBASE_FAILED=true" >> $GITHUB_OUTPUT
           git add main/script.user.js
           git commit -m "bump version to ${{ steps.update-version.outputs.NEW_VERSION }}"
           git push
-
-      - name: Error rebase → comentar en PR
-        if: ${{ steps.rebase.outputs.REBASE_FAILED == 'true' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -f body="❌ No se pudo hacer **rebase con main**.  
-            Existen conflictos que deben resolverse manualmente."
-          exit 1
 
       - name: Merge PR
         id: merge
@@ -137,9 +144,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
             -f body="❌ No se pudo hacer el **merge**.  
-            Puede haber conflictos o requisitos que impidan mergear el PR."
+            Puede haber conflictos o requisitos que impidan mergear el PR.
+            Revisa el trabajo: $RUN_URL"
+          exit 1
 
       - name: Merge correcto → comentar éxito
         if: ${{ steps.merge.outputs.MERGE_FAILED != 'true' }}
