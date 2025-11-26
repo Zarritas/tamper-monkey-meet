@@ -46,7 +46,8 @@
                 END_CALL_BUTTON: 'button[jsname="CQylAd"]',
                 MEET_CONTAINER: 'div[jscontroller="mVP9bb"]',
                 MEET_INFO: '.AzuXid.O2VjS',
-                DESCRIPTION_SOURCE: 'div[jsname="NeC6gb"]'
+                DESCRIPTION_SOURCE: 'div[jscontroller="XMlCJe"]',
+                DESCRIPTION_ATTRIBUTE: 'data-meeting-title'
             },
             CALENDAR: {
                 HANGUP_DIV: 'div.YWILgc.UcbTuf:not(.qdulke)',
@@ -230,14 +231,14 @@
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).textContent
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.DESCRIPTION_ATTRIBUTE)
     }
 
     async function setRefinementReport() {
         if (!await ensureAuth()) return
         is_daily = false
         await setProjectAndTask("Temas internos", "Refinement")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).textContent.replace('Daily', 'Refinamiento')
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.DESCRIPTION_ATTRIBUTE).replace('Daily', 'Refinamiento')
     }
 
     async function setStaticUrlReport(element) {
