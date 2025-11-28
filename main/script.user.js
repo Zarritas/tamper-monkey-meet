@@ -231,14 +231,14 @@
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.DESCRIPTION_ATTRIBUTE)
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
     }
 
     async function setRefinementReport() {
         if (!await ensureAuth()) return
         is_daily = false
         await setProjectAndTask("Temas internos", "Refinement")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.DESCRIPTION_ATTRIBUTE).replace('Daily', 'Refinamiento')
+        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE).replace('Daily', 'Refinamiento')
     }
 
     async function setStaticUrlReport(element) {
