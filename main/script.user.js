@@ -231,7 +231,9 @@
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
+        setTimeout(()=> {
+            document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
+        }, 5000)
     }
 
     async function setRefinementReport() {
