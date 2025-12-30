@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      2.2.3
+// @version      2.2.4
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -231,7 +231,9 @@
         if (!await ensureAuth()) return
         is_daily = true
         await setProjectAndTask("Temas internos", "Daily")
-        document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
+        setTimeout(()=> {
+            document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
+        }, 5000)
     }
 
     async function setRefinementReport() {
@@ -726,18 +728,20 @@
         overlay.append(popup);
         document.body.appendChild(overlay);
         button_cancel.addEventListener('click', () => {
-            overlay.remove();
-            popup.remove();
-            window.removeEventListener('beforeunload', beforeUnloadHandler)
+            setTimeout(()=>{
+                closeConfigPopup()
+                window.removeEventListener('beforeunload', beforeUnloadHandler)
+            }, 2000)
         });
         button_submit.addEventListener('click', async () => {
             project_id = input_project.value;
             task_id = input_task.value;
             description = input_description.value;
             await sendTimeTrackingData()
-            overlay.remove();
-            popup.remove();
-            window.removeEventListener('beforeunload', beforeUnloadHandler)
+            setTimeout(()=>{
+                closeConfigPopup()
+                window.removeEventListener('beforeunload', beforeUnloadHandler)
+            }, 2000)
         });
     }
 
