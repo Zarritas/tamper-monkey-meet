@@ -728,18 +728,20 @@
         overlay.append(popup);
         document.body.appendChild(overlay);
         button_cancel.addEventListener('click', () => {
-            overlay.remove();
-            popup.remove();
-            window.removeEventListener('beforeunload', beforeUnloadHandler)
+            setTimeout(()=>{
+                closeConfigPopup()
+                window.removeEventListener('beforeunload', beforeUnloadHandler)
+            }, 2000)
         });
         button_submit.addEventListener('click', async () => {
             project_id = input_project.value;
             task_id = input_task.value;
             description = input_description.value;
             await sendTimeTrackingData()
-            overlay.remove();
-            popup.remove();
-            window.removeEventListener('beforeunload', beforeUnloadHandler)
+            setTimeout(()=>{
+                closeConfigPopup()
+                window.removeEventListener('beforeunload', beforeUnloadHandler)
+            }, 2000)
         });
     }
 
