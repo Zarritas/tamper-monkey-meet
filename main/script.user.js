@@ -13,16 +13,16 @@
 // @match        https://calendar.google.com/*
 // @exclude      https://meet.google.com/landing
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
-// @resource popup-css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-imputar/refs/heads/main/main/css/style.css
-// @resource css https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/css/style.css
-// @resource bootstrap https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css
-// @resource poppins https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap
-// @require      https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-imputar/refs/heads/main/main/scripts/utils.js
-// @require      https://raw.githubusercontent.com/FlJesusLorenzo/tampermonkey-odoo-rpc/refs/heads/main/OdooRPC.js
+// @resource     bootstrap https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css
+// @resource     poppins https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap
+// @resource     popup-css https://raw.githubusercontent.com/Zarritas/tamper-monkey-imputar/refs/heads/main/main/css/style.css
+// @resource     css https://raw.githubusercontent.com/Zarritas/tamper-monkey-meet/refs/heads/main/main/css/style.css
+// @require      https://raw.githubusercontent.com/Zarritas/tamper-monkey-imputar/refs/heads/main/main/scripts/utils.js
+// @require      https://raw.githubusercontent.com/Zarritas/tampermonkey-odoo-rpc/refs/heads/main/OdooRPC.js
 // @require      https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/script.user.js
-// @downloadURL  https://raw.githubusercontent.com/FlJesusLorenzo/tamper-monkey-meet/refs/heads/main/main/script.user.js
+// @updateURL    https://raw.githubusercontent.com/Zarritas/tamper-monkey-meet/refs/heads/main/main/script.user.js
+// @downloadURL  https://raw.githubusercontent.com/Zarritas/tamper-monkey-meet/refs/heads/main/main/script.user.js
 // ==/UserScript==
 
 (function () {
