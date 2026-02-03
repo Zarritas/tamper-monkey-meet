@@ -44,7 +44,7 @@
             MEET: {
                 START_BUTTON: '.XCoPyb',
                 END_CALL_BUTTON: 'button[jsname="CQylAd"]',
-                MEET_CONTAINER: 'div[jscontroller="mVP9bb"]',
+                MEET_CONTAINER: 'div[jscontroller="baDByd"]',
                 MEET_INFO: '.AzuXid.O2VjS',
                 DESCRIPTION_SOURCE: 'div[jscontroller="XMlCJe"]',
                 DESCRIPTION_ATTRIBUTE: 'data-meeting-title'
