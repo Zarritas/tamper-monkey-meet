@@ -44,7 +44,7 @@
             MEET: {
                 START_BUTTON: '.XCoPyb',
                 END_CALL_BUTTON: 'button[jsname="CQylAd"]',
-                MEET_CONTAINER: 'div[jscontroller="baDByd"]',
+                MEET_CONTAINER: 'div[jscontroller="xzpRhb"]',
                 MEET_INFO: '.AzuXid.O2VjS',
                 DESCRIPTION_SOURCE: 'div[jscontroller="XMlCJe"]',
                 DESCRIPTION_ATTRIBUTE: 'data-meeting-title'
@@ -552,7 +552,7 @@
     }
 
     function createImputationConfig() {
-        const imputationConfig = UI.create("div", "imputation_config", "pt8HRc RTBkae");
+        const imputationConfig = UI.create("div", "imputation_config", "");
         imputationConfig.style.top = "0px";
         imputationConfig.style.right = "0px";
 
