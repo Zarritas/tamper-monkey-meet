@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      2.2.6
+// @version      2.2.7
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -114,6 +114,31 @@
                 })
                 block.append(span_del, span_conf);
             }
+            return block;
+        },
+        createSelectBlock: (id, labelText, inputClass, blockClass, options = []) => {
+            const block = UI.create("div", `block-${id}`, blockClass);
+
+            const label = UI.create("label", null, "input-group-text", labelText);
+            label.setAttribute("for", id);
+            label.style = "margin-top: 5px; justify-content: center; display:flex; align-items: center";
+            block.appendChild(label);
+
+            const input = UI.create('select', id, inputClass);
+            options.forEach((o) => {
+                const option = UI.create('option',`option-${o}`, null, o)
+                option.value = o
+                if (o === GM_getValue('area','')){
+                    option.selected = true
+                }
+                input.appendChild(option)
+            })
+            input.addEventListener('change',() => {
+                GM_setValue('area', this.value)
+            })
+
+            block.appendChild(input);
+
             return block;
         },
         createTaskBlock: (id, labelText, inputClass, blockClass) => {
@@ -230,7 +255,7 @@
     async function setDailyReport() {
         if (!await ensureAuth()) return
         is_daily = true
-        await setProjectAndTask("Temas internos", "Daily")
+        await setProjectAndTask("Temas internos", `daily - ${GM_getValue('area', '')}`)
         setTimeout(()=> {
             document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
         }, 5000)
@@ -239,7 +264,7 @@
     async function setRefinementReport() {
         if (!await ensureAuth()) return
         is_daily = false
-        await setProjectAndTask("Temas internos", "Refinement")
+        await setProjectAndTask("Temas internos", `refinement - ${GM_getValue('area', '')}`)
         document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE).replace('Daily', 'Refinamiento')
     }
 
@@ -616,6 +641,7 @@
         globalConfig.appendChild(UI.createInputBlock("odoo_url", "URL Odoo: ", GM_getValue(CONSTANTS.STORAGE.ODOO_URL), "global-config form-control", "input-group flex-nowrap mb-3"));
         globalConfig.appendChild(UI.createInputBlock("db", "Base de datos: ", GM_getValue(CONSTANTS.STORAGE.DB), "global-config form-control", "input-group flex-nowrap mb-3"));
         globalConfig.appendChild(UI.createInputBlock("daily", "URL meet daily: ", GM_getValue(CONSTANTS.STORAGE.DAILY_MEET), "global-config form-control", "input-group flex-nowrap mb-3"));
+        globalConfig.appendChild(UI.createSelectBlock("area", "Área funcional: ", "global-config form-control", "select-group flex-nowrap mb-3",['conectores','trols','almacen','financiero','tpv','pedidos']));
         GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, []).forEach((element) => {
             urlConfig.appendChild(UI.createInputBlock(element.name, `URL meet ${element.label}`, element.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"));
         })
@@ -746,6 +772,9 @@
     }
 
     if (location.origin == "https://meet.google.com") {
+        if (GM_getValue('area','') === ''){
+            GM_setValue('area',prompt("Selecciona tu área funcional"))
+        }
         observer = new MutationObserver(() => {
             const container = document.querySelector(CONSTANTS.SELECTORS.MEET.MEET_CONTAINER)
             const new_div = document.getElementById('imputation_config')
