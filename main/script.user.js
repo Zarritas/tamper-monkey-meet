@@ -395,7 +395,6 @@
                 ['name', 'ilike', this.value]
             ];
             if (this.id == "task" || this.id == "new-task") {
-                domain.push(['stage_id.closed', '=', false]);
                 if (!parent.querySelector('#project-id').textContent) {
                     console.log("rellenar el proyecto primero");
                     this.value = ''
