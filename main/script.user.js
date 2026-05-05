@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      2.3.0
+// @version      2.3.1
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -63,7 +63,15 @@
             BTN_DANGER: 'btn-danger',
             BTN_WARNING: 'btn-warning',
             BTN_INFO: 'btn-info'
-        }
+        },
+        AF_PROJECTS: [
+            { option:'conectores', value:'AF Conectores'},
+            { option:'trols', value:'AF Transportistas y OL'},
+            { option:'almacen', value:'AF Almacén'},
+            { option:'financiero', value:'AF Financiero'},
+            { option:'tpv', value:'POS v16'},
+            { option:'pedidos', value:'AF Pedidos'}
+        ]
     };
     const UI = {
         create: (tag, id, classList, text = '') => {
@@ -125,16 +133,16 @@
             block.appendChild(label);
 
             const input = UI.create('select', id, inputClass);
-            options.forEach((o) => {
-                const option = UI.create('option',`option-${o}`, null, o)
-                option.value = o
-                if (o === GM_getValue('area','')){
+            options.forEach((e) => {
+                const option = UI.create('option',`option-${e.option}`, null, e.option)
+                option.value = e.value
+                if (e.value === GM_getValue('area','')){
                     option.selected = true
                 }
                 input.appendChild(option)
             })
-            input.addEventListener('change',() => {
-                GM_setValue('area', this.value)
+            input.addEventListener('change',(e) => {
+                GM_setValue('area', e.target.value)
             })
 
             block.appendChild(input);
@@ -641,7 +649,7 @@
         globalConfig.appendChild(UI.createInputBlock("odoo_url", "URL Odoo: ", GM_getValue(CONSTANTS.STORAGE.ODOO_URL), "global-config form-control", "input-group flex-nowrap mb-3"));
         globalConfig.appendChild(UI.createInputBlock("db", "Base de datos: ", GM_getValue(CONSTANTS.STORAGE.DB), "global-config form-control", "input-group flex-nowrap mb-3"));
         globalConfig.appendChild(UI.createInputBlock("daily", "URL meet daily: ", GM_getValue(CONSTANTS.STORAGE.DAILY_MEET), "global-config form-control", "input-group flex-nowrap mb-3"));
-        globalConfig.appendChild(UI.createSelectBlock("area", "Área funcional: ", "global-config form-control", "select-group flex-nowrap mb-3",['conectores','trols','almacen','financiero','tpv','pedidos']));
+        globalConfig.appendChild(UI.createSelectBlock("area", "Área funcional: ", "global-config form-control", "select-group flex-nowrap mb-3",CONSTANTS.AF_PROJECTS));
         GM_getValue(CONSTANTS.STORAGE.STATIC_URLS, []).forEach((element) => {
             urlConfig.appendChild(UI.createInputBlock(element.name, `URL meet ${element.label}`, element.value, "global-config form-control new-url", "input-group flex-nowrap mb-3"));
         })
