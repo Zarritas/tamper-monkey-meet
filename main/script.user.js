@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Meet Imputación automática
 // @namespace    http://tampermonkey.net/
-// @version      2.2.7
+// @version      2.3.0
 // @description  Registra el tiempo del meet y genera la imputacion automaticamente
 // @author       Jesus Lorenzo
 // @grant        GM_setValue
@@ -255,7 +255,8 @@
     async function setDailyReport() {
         if (!await ensureAuth()) return
         is_daily = true
-        await setProjectAndTask("Temas internos", `daily - ${GM_getValue('area', '')}`)
+        let date = new Date()
+        await setProjectAndTask(GM_getValue('area', ''), `daily%${date.toLocaleString('es-ES', { month: 'long' })}%${date.getFullYear()}`)
         setTimeout(()=> {
             document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE)
         }, 5000)
@@ -264,7 +265,8 @@
     async function setRefinementReport() {
         if (!await ensureAuth()) return
         is_daily = false
-        await setProjectAndTask("Temas internos", `refinement - ${GM_getValue('area', '')}`)
+        let date = new Date()
+        await setProjectAndTask(GM_getValue('area', ''), `refin%${date.toLocaleString('es-ES', { month: 'long' })}%${date.getFullYear()}`)
         document.getElementById('description').value = document.querySelector(CONSTANTS.SELECTORS.MEET.DESCRIPTION_SOURCE).getAttribute(CONSTANTS.SELECTORS.MEET.DESCRIPTION_ATTRIBUTE).replace('Daily', 'Refinamiento')
     }
 
@@ -297,7 +299,6 @@
             'project.task',
             [
                 ['project_id', '=', project_temp_id || project_id],
-                ['stage_id.closed', '=', false],
                 ['name', 'ilike', task_name]
             ],
             1,
